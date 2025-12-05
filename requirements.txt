@@ -1,0 +1,10 @@
+torch
+torchvision
+torchaudio
+pydicom
+opencv-python
+numpy
+pandas
+matplotlib
+scikit-learn
+ultralytics
