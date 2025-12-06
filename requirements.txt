@@ -8,3 +8,6 @@ pandas
 matplotlib
 scikit-learn
 ultralytics
+Pillow
+tqdm
+seaborn
