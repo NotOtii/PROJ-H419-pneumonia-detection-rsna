@@ -1,0 +1,8 @@
+best_epoch=2
+best_val_loss=0.442015
+accuracy=0.804549
+precision=0.548413
+recall_sensitivity=0.748058
+specificity=0.820968
+f1=0.632864
+balanced_accuracy=0.784513
