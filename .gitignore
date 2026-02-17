@@ -26,3 +26,8 @@ env/
 
 # VS Code settings
 .vscode/
+
+results/*
+!results/classification/
+!results/classification/*.png
+!results/classification/*.txt
