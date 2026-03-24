@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
 
 import pandas as pd
 from PIL import Image
@@ -40,20 +40,25 @@ class PneumoniaDataset(Dataset):
 
     transform : torchvision.transforms, optional
         Transform pipeline applied to images.
-        Train/val/test transformations must be defined externally.
+
+    return_path : bool, optional
+        If True, __getitem__ returns (image, label, image_path).
+        Useful for error analysis (saving FP/FN examples).
     """
 
     def __init__(
         self,
-        labels_csv: str | Path,
-        split_file: str | Path,
-        base_dir: str | Path = ".",
+        labels_csv: Union[str, Path],
+        split_file: Union[str, Path],
+        base_dir: Union[str, Path] = ".",
         transform=None,
+        return_path: bool = False,
     ):
         self.labels_csv = Path(labels_csv)
         self.split_file = Path(split_file)
         self.base_dir = Path(base_dir)
         self.transform = transform
+        self.return_path = return_path
 
         # -----------------------------
         # Safety checks
@@ -80,6 +85,7 @@ class PneumoniaDataset(Dataset):
         split_paths = [
             line.strip()
             for line in self.split_file.read_text(encoding="utf-8").splitlines()
+            if line.strip()
         ]
         split_set = set(Path(p).as_posix() for p in split_paths)
 
@@ -107,34 +113,20 @@ class PneumoniaDataset(Dataset):
         self.df = df
 
     def __len__(self) -> int:
-        """
-        Returns the number of samples in this split.
-        """
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> Tuple[object, int]:
-        """
-        Returns:
-            image (transformed tensor)
-            label (int: 0 or 1)
-        """
+    def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
         rel_path = Path(row["image_path"])
-        img_path = self.base_dir / rel_path
+        img_path = (self.base_dir / rel_path).resolve()
 
-        # -----------------------------
-        # Load image as grayscale
-        # -----------------------------
-        img = Image.open(img_path).convert("L")
-
-        # Convert grayscale -> 3 channels
-        # This allows use of pretrained ResNet models (which expect 3 channels)
-        img = img.convert("RGB")
-
+        # Load image as grayscale then convert to RGB (3 channels)
+        img = Image.open(img_path).convert("L").convert("RGB")
         label = int(row["label"])
 
-        # Apply transform pipeline (resize, normalization, augmentation, etc.)
         if self.transform is not None:
             img = self.transform(img)
 
+        if self.return_path:
+            return img, label, str(img_path)
         return img, label

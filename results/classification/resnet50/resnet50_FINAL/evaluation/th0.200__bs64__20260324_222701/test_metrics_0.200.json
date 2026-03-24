@@ -1,0 +1,17 @@
+{
+  "tp": 793,
+  "fp": 962,
+  "tn": 2138,
+  "fn": 108,
+  "accuracy": 0.7325668582854287,
+  "sensitivity": 0.8801331853496105,
+  "specificity": 0.6896774193548385,
+  "precision": 0.4518518518518516,
+  "f1": 0.5971385542164187,
+  "balanced_accuracy": 0.7849053023522246,
+  "roc_auc": 0.8692724929290037,
+  "threshold": 0.2,
+  "model_name": "resnet50",
+  "checkpoint": "models\\resnet50_FINAL.pth",
+  "batch_size": 64
+}

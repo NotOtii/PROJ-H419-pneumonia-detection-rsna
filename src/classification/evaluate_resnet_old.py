@@ -1,7 +1,5 @@
 import argparse
 import datetime
-import json
-import csv
 import sys
 from pathlib import Path
 
@@ -61,52 +59,25 @@ def compute_metrics(y_true, y_pred, y_prob):
 
 
 def plot_confusion_matrix(tp, fp, tn, fn, save_path):
-    cm = np.array([[tn, fp], [fn, tp]], dtype=float)
-    total = max(cm.sum(), 1.0)
-    cm_pct = cm / total
+    cm = np.array([[tn, fp], [fn, tp]], dtype=int)
 
-    fig, ax = plt.subplots(figsize=(7, 6))
-    im = ax.imshow(cm, cmap="RdBu_r")
-
-    cbar = fig.colorbar(im, ax=ax)
-    cbar.ax.set_ylabel("Count", rotation=270, labelpad=18)
-
-    ax.set_title("Confusion Matrix (Test)", fontsize=14, pad=12)
-    ax.set_xlabel("Predicted", fontsize=12)
-    ax.set_ylabel("True", fontsize=12)
-    ax.set_xticks([0, 1], ["Normal (0)", "Pneumonia (1)"])
-    ax.set_yticks([0, 1], ["Normal (0)", "Pneumonia (1)"])
-
-    max_value = cm.max() if cm.size else 1.0
-    threshold = max_value * 0.55
+    plt.figure()
+    plt.imshow(cm)
+    plt.title("Confusion Matrix (Test)")
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.xticks([0, 1], ["Normal(0)", "Pneumonia(1)"])
+    plt.yticks([0, 1], ["Normal(0)", "Pneumonia(1)"])
 
     for (i, j), v in np.ndenumerate(cm):
-        text_color = "white" if v >= threshold else "black"
-        ax.text(
-            j,
-            i,
-            f"{int(v)}\n({cm_pct[i, j] * 100:.1f}%)",
-            ha="center",
-            va="center",
-            color=text_color,
-            fontsize=12,
-            fontweight="semibold",
-        )
+        plt.text(j, i, str(v), ha="center", va="center")
 
-    ax.set_xticks(np.arange(-0.5, 2, 1), minor=True)
-    ax.set_yticks(np.arange(-0.5, 2, 1), minor=True)
-    ax.grid(which="minor", color="white", linestyle="-", linewidth=2)
-    ax.tick_params(which="minor", bottom=False, left=False)
     plt.tight_layout()
-    plt.savefig(save_path, bbox_inches="tight", dpi=220)
+    plt.savefig(save_path, bbox_inches="tight")
     plt.close()
 
 
 def build_model(model_name: str):
-    """
-    Build the SAME architecture as in train_resnet.py.
-    Supported: resnet18, resnet50, densenet121.
-    """
     model_name = model_name.lower().strip()
 
     if model_name == "resnet50":
@@ -182,39 +153,6 @@ def save_top_errors(
     print(f"[INFO] Saved errors -> {out_dir} (FP={saved_fp}, FN={saved_fn})")
 
 
-def save_probability_histogram(y_true, y_prob, save_path):
-    plt.figure(figsize=(9, 5.5))
-    plt.hist(y_prob[y_true == 0], bins=30, alpha=0.65, label="True Normal (0)")
-    plt.hist(y_prob[y_true == 1], bins=30, alpha=0.65, label="True Pneumonia (1)")
-    plt.xlabel("Predicted probability for Pneumonia (class 1)")
-    plt.ylabel("Count")
-    plt.title("Probability Distribution on Test Set")
-    plt.grid(alpha=0.25, linestyle="--")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(save_path, bbox_inches="tight", dpi=220)
-    plt.close()
-
-
-def save_metrics_text(path: Path, metrics: dict):
-    with path.open("w", encoding="utf-8") as f:
-        for k, v in metrics.items():
-            f.write(f"{k}={v}\n")
-
-
-def save_metrics_json(path: Path, metrics: dict):
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(metrics, f, indent=2)
-
-
-def save_predictions_csv(path: Path, y_true, y_pred, y_prob, all_paths):
-    with path.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["image_path", "y_true", "y_pred", "prob_pneumonia"])
-        for img_path, true, pred, prob in zip(all_paths, y_true, y_pred, y_prob):
-            writer.writerow([img_path, int(true), int(pred), float(prob)])
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, default="resnet50",
@@ -260,11 +198,11 @@ def main():
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=4,
-        pin_memory=torch.cuda.is_available(),
+        pin_memory=True,
     )
 
     model = build_model(args.model_name).to(device)
-    state = torch.load(args.checkpoint, map_location=device)
+    state = torch.load(args.checkpoint, map_location=device, weights_only=True)
     model.load_state_dict(state)
     model.eval()
 
@@ -300,9 +238,6 @@ def main():
 
     metrics = compute_metrics(y_true, y_pred, y_prob)
     metrics["threshold"] = float(chosen_t)
-    metrics["model_name"] = args.model_name
-    metrics["checkpoint"] = args.checkpoint
-    metrics["batch_size"] = args.batch_size
 
     print("[INFO] --- TEST METRICS ---")
     for k, v in metrics.items():
@@ -311,7 +246,7 @@ def main():
         else:
             print(f"{k}: {v}")
 
-    # FIXED INDENTATION BLOCK
+    # 🔥 FIXED INDENTATION BLOCK
     results_root = Path(args.results_root)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -321,39 +256,23 @@ def main():
         if args.threshold is not None
         else f"autoSens{args.target_sensitivity:.2f}_th{chosen_t:.3f}"
     )
+    run_name = (
+        args.run_name
+        or f"{args.model_name}__{ckpt_stem}__{th_str}__bs{args.batch_size}__{timestamp}"
+    )
 
-    parent_run_name = args.run_name or ckpt_stem
-    results_dir = results_root / args.model_name / parent_run_name / "evaluation" / f"{th_str}__bs{args.batch_size}__{timestamp}"
-    plots_dir = results_dir / "plots"
-    plots_dir.mkdir(parents=True, exist_ok=True)
+    results_dir = results_root / args.model_name / run_name
+    results_dir.mkdir(parents=True, exist_ok=True)
 
-    cm_path = plots_dir / f"confusion_matrix_test_{chosen_t:.3f}.png"
+    cm_path = results_dir / f"confusion_matrix_test_{chosen_t:.3f}.png"
     plot_confusion_matrix(metrics["tp"], metrics["fp"], metrics["tn"], metrics["fn"], cm_path)
     print(f"[INFO] Confusion matrix saved to {cm_path}")
 
-    prob_hist_path = plots_dir / f"probability_histogram_test_{chosen_t:.3f}.png"
-    save_probability_histogram(y_true, y_prob, prob_hist_path)
-    print(f"[INFO] Probability histogram saved to {prob_hist_path}")
-
     out_txt = results_dir / f"test_metrics_{chosen_t:.3f}.txt"
-    save_metrics_text(out_txt, metrics)
+    with out_txt.open("w", encoding="utf-8") as f:
+        for k, v in metrics.items():
+            f.write(f"{k}={v}\n")
     print(f"[INFO] Metrics saved to {out_txt}")
-
-    out_json = results_dir / f"test_metrics_{chosen_t:.3f}.json"
-    save_metrics_json(out_json, metrics)
-
-    predictions_csv = results_dir / f"test_predictions_{chosen_t:.3f}.csv"
-    save_predictions_csv(predictions_csv, y_true, y_pred, y_prob, all_paths)
-
-    run_summary = {
-        "parent_run_name": parent_run_name,
-        "evaluation_dir": str(results_dir.as_posix()),
-        "plots_dir": str(plots_dir.as_posix()),
-        "confusion_matrix_path": str(cm_path.as_posix()),
-        "probability_histogram_path": str(prob_hist_path.as_posix()),
-        "predictions_csv": str(predictions_csv.as_posix()),
-    }
-    save_metrics_json(results_dir / "evaluation_summary.json", run_summary)
 
     if args.save_errors:
         errors_dir = results_dir / "errors"

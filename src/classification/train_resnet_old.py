@@ -72,33 +72,6 @@ def metrics_from_counts(tp: int, fp: int, tn: int, fn: int) -> Dict[str, float]:
     }
 
 
-def compute_train_accuracy(
-    model: torch.nn.Module,
-    loader: DataLoader,
-    device: torch.device,
-) -> float:
-    """
-    Compute plain accuracy on a loader.
-    """
-    model.eval()
-
-    correct = 0
-    total = 0
-
-    with torch.no_grad():
-        for images, labels in loader:
-            images = images.to(device)
-            labels = labels.to(device)
-
-            logits = model(images)
-            preds = torch.argmax(logits, dim=1)
-
-            correct += int((preds == labels).sum().item())
-            total += int(labels.numel())
-
-    return float(correct / max(total, 1))
-
-
 # ------------------------------------------------------------
 # Data
 # ------------------------------------------------------------
@@ -155,7 +128,7 @@ def get_dataloaders(
     - train_split / val_split: lists of image paths (one per line)
 
     Returns:
-        train_loader, val_loader, class_weights (tensor length 2), class_counts (dict)
+        train_loader, val_loader, class_weights (tensor length 2)
     """
     train_transform, val_transform = get_transforms(image_size=image_size)
 
@@ -210,9 +183,7 @@ def get_dataloaders(
     print(f"[INFO] Train samples: {len(train_dataset)}  (normal={count_0}, pneumonia={count_1})")
     print(f"[INFO] Val samples:   {len(val_dataset)}")
 
-    class_counts = {"normal": count_0, "pneumonia": count_1}
-
-    return train_loader, val_loader, class_weights, class_counts
+    return train_loader, val_loader, class_weights
 
 
 # ------------------------------------------------------------
@@ -258,7 +229,6 @@ def train_resnet(
     image_size: int = 224,
     num_workers: int = 4,
     early_stopping_patience: int = 5,
-    use_weighted_loss: bool = True,
 ):
     """
     Train ResNet classifier with:
@@ -274,7 +244,7 @@ def train_resnet(
     print(f"[INFO] Device: {device}")
 
     # Data
-    train_loader, val_loader, class_weights, class_counts = get_dataloaders(
+    train_loader, val_loader, class_weights = get_dataloaders(
         labels_csv=labels_csv,
         train_split=train_split,
         val_split=val_split,
@@ -289,15 +259,7 @@ def train_resnet(
 
     # Loss (weighted)
     class_weights = class_weights.to(device)
-    if use_weighted_loss:
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
-        print(
-            f"[INFO] Using weighted cross entropy with class weights: "
-            f"normal={class_weights[0].item():.4f}, pneumonia={class_weights[1].item():.4f}"
-        )
-    else:
-        criterion = nn.CrossEntropyLoss()
-        print("[INFO] Using standard cross entropy (no class weighting).")
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     # Optimizer + scheduler
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -308,7 +270,6 @@ def train_resnet(
     # Logging
     train_losses = []
     val_losses = []
-    train_accuracies = []
     val_metrics_history = []  # dict per epoch
 
     best_val_loss = float("inf")
@@ -338,9 +299,6 @@ def train_resnet(
         train_loss = running_loss / max(len(train_loader), 1)
         train_losses.append(train_loss)
 
-        train_acc = compute_train_accuracy(model, train_loader, device)
-        train_accuracies.append(train_acc)
-
         # ---------------------- VAL ----------------------
         model.eval()
         val_running_loss = 0.0
@@ -368,8 +326,7 @@ def train_resnet(
         print(
             f"Epoch [{epoch+1:02d}/{epochs}] "
             f"TrainLoss={train_loss:.4f}  ValLoss={val_loss:.4f}  "
-            f"TrainAcc={train_acc:.4f}  ValAcc={m['accuracy']:.4f}  "
-            f"BalAcc={m['balanced_accuracy']:.4f}  "
+            f"Acc={m['accuracy']:.4f}  BalAcc={m['balanced_accuracy']:.4f}  "
             f"Sens={m['recall_sensitivity']:.4f}  Spec={m['specificity']:.4f}  "
             f"F1={m['f1']:.4f}  LR={current_lr:.6f}"
         )
@@ -411,12 +368,11 @@ def train_resnet(
     # IMPORTANT: save each run in its own folder (no overwrite)
     results_root = Path("results/classification")
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    weighted_tag = "weighted" if use_weighted_loss else "unweighted"
-    run_name = f"{model_name}_{weighted_tag}_ep{epochs}_bs{batch_size}_lr{lr}_wd{weight_decay}_img{image_size}_pat{early_stopping_patience}_{timestamp}"
+    run_name = f"{model_name}_ep{epochs}_bs{batch_size}_lr{lr}_wd{weight_decay}_img{image_size}_pat{early_stopping_patience}_{timestamp}"
     results_dir = results_root / model_name / run_name
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    run_title = f"{model_name} | {weighted_tag} | ep={epochs} bs={batch_size} lr={lr} wd={weight_decay} img={image_size} pat={early_stopping_patience}"
+    run_title = f"{model_name} | ep={epochs} bs={batch_size} lr={lr} wd={weight_decay} img={image_size} pat={early_stopping_patience}"
 
     # Loss curves
     epochs_range = range(1, len(train_losses) + 1)
@@ -431,21 +387,6 @@ def train_resnet(
     plt.title(f"Training / Validation Loss\n{run_title}")
     plt.legend()
     plt.savefig(results_dir / "loss_curves.png", bbox_inches="tight")
-    plt.close()
-
-    # Accuracy curves
-    val_acc = [d["accuracy"] for d in val_metrics_history]
-
-    plt.figure()
-    plt.plot(epochs_range, train_accuracies, label="Train Accuracy")
-    plt.plot(epochs_range, val_acc, label="Val Accuracy")
-    if best_epoch >= 0:
-        plt.axvline(best_epoch + 1, linestyle="--", label=f"Best epoch {best_epoch+1}")
-    plt.xlabel("Epoch")
-    plt.ylabel("Accuracy")
-    plt.title(f"Training / Validation Accuracy\n{run_title}")
-    plt.legend()
-    plt.savefig(results_dir / "accuracy_curves.png", bbox_inches="tight")
     plt.close()
 
     # Validation metrics curves
@@ -482,11 +423,6 @@ def train_resnet(
         f.write(f"weight_decay={weight_decay}\n")
         f.write(f"image_size={image_size}\n")
         f.write(f"early_stopping_patience={early_stopping_patience}\n")
-        f.write(f"use_weighted_loss={use_weighted_loss}\n")
-        f.write(f"class_weight_normal={class_weights[0].item():.6f}\n")
-        f.write(f"class_weight_pneumonia={class_weights[1].item():.6f}\n")
-        f.write(f"train_count_normal={class_counts['normal']}\n")
-        f.write(f"train_count_pneumonia={class_counts['pneumonia']}\n")
         f.write(f"best_epoch={best_epoch+1 if best_epoch>=0 else 'NA'}\n")
         f.write(f"best_val_loss={best_val_loss:.6f}\n")
         for k, v in best_metrics.items():
@@ -512,7 +448,6 @@ def parse_args():
     parser.add_argument("--image_size", type=int, default=224)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--early_stopping_patience", type=int, default=5)
-    parser.add_argument("--no_weighted_loss", action="store_true")
     return parser.parse_args()
 
 
@@ -532,7 +467,6 @@ if __name__ == "__main__":
         image_size=args.image_size,
         num_workers=args.num_workers,
         early_stopping_patience=args.early_stopping_patience,
-        use_weighted_loss=not args.no_weighted_loss,
     )
 
 

@@ -1,0 +1,15 @@
+tp=814
+fp=1050
+tn=2050
+fn=87
+accuracy=0.7158210447388152
+sensitivity=0.9034406215316305
+specificity=0.661290322580645
+precision=0.43669527896995686
+f1=0.5887884267626705
+balanced_accuracy=0.7823654720561377
+roc_auc=0.8692724929290037
+threshold=0.15
+model_name=resnet50
+checkpoint=models\resnet50_FINAL.pth
+batch_size=64
