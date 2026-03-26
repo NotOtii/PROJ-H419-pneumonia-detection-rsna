@@ -1,0 +1,17 @@
+{
+  "group": "TP",
+  "model_name": "resnet50",
+  "checkpoint": "C:\\Users\\houta\\Desktop\\MA2\\PROJ-H419-Pneumonia\\models\\resnet50_FINAL.pth",
+  "image_path": "C:\\Users\\houta\\Desktop\\MA2\\PROJ-H419-Pneumonia\\data\\png\\train\\4b6f8c4f-f093-4b85-a22f-4e5da0be7eeb.png",
+  "relative_path": "data/png/train/4b6f8c4f-f093-4b85-a22f-4e5da0be7eeb.png",
+  "true_label": 1,
+  "predicted_label": 1,
+  "normal_probability": 0.0013436792651191354,
+  "pneumonia_probability": 0.9986562728881836,
+  "gradcam_target_class": 1,
+  "saved_files": {
+    "original": "results/classification/gradcam_batch/resnet50/resnet50_FINAL/TP/4b6f8c4f-f093-4b85-a22f-4e5da0be7eeb/original.png",
+    "heatmap": "results/classification/gradcam_batch/resnet50/resnet50_FINAL/TP/4b6f8c4f-f093-4b85-a22f-4e5da0be7eeb/heatmap.png",
+    "overlay": "results/classification/gradcam_batch/resnet50/resnet50_FINAL/TP/4b6f8c4f-f093-4b85-a22f-4e5da0be7eeb/overlay.png"
+  }
+}

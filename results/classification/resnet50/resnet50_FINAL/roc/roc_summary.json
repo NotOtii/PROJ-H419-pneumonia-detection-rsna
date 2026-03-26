@@ -1,0 +1,12 @@
+{
+  "model_name": "resnet50",
+  "checkpoint": "models/resnet50_FINAL.pth",
+  "labels_csv": "data/classification_labels.csv",
+  "test_split": "data/splits/test.txt",
+  "image_size": 224,
+  "batch_size": 64,
+  "num_test_samples": 4001,
+  "roc_auc": 0.8692710608284703,
+  "roc_curve_path": "results/classification/resnet50/resnet50_FINAL/roc/roc_curve_test.png",
+  "roc_points_csv": "results/classification/resnet50/resnet50_FINAL/roc/roc_points.csv"
+}
