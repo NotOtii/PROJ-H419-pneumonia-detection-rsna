@@ -1,3 +1,26 @@
+"""
+prepare_classification_labels.py
+--------------------------------
+Build a binary classification CSV from the RSNA bounding-box labels.
+
+Label mapping:
+    0 = normal   (no bounding box for that patient)
+    1 = pneumonia (at least one bounding box)
+
+The script groups rows by patientId (one patient can have multiple boxes),
+takes the max Target value per patient, and matches each patient to its
+corresponding PNG image.
+
+Output:
+    data/classification_labels.csv   (columns: image_path, label)
+
+Usage:
+    python src/data_src/prepare_classification_labels.py \
+        --labels_csv data/raw/stage_1_train_labels.csv \
+        --images_dir data/png/train \
+        --output_csv data/classification_labels.csv
+"""
+
 import argparse
 from pathlib import Path
 
@@ -117,8 +140,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-"""
-python src\data_src\prepare_classification_labels.py --labels_csv data\raw\stage_1_train_labels.csv --images_dir data\png\train --output_csv data\classification_labels.csv
-
-"""

@@ -6,8 +6,6 @@ opencv-python
 numpy
 pandas
 matplotlib
-scikit-learn
-ultralytics
 Pillow
 tqdm
 seaborn

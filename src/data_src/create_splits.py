@@ -1,10 +1,28 @@
+"""
+create_splits.py
+----------------
+Create stratified train / validation / test splits from classification_labels.csv.
+
+The split preserves the pneumonia / normal class ratio across all three subsets,
+ensuring that each subset is representative of the overall dataset.
+
+Outputs:
+    data/splits/train.txt
+    data/splits/val.txt
+    data/splits/test.txt
+    data/splits/splits_summary.txt
+
+Usage:
+    python src/data_src/create_splits.py \
+        --labels_csv data/classification_labels.csv \
+        --output_dir data/splits \
+        --val_ratio 0.15 --test_ratio 0.15 --seed 42
+"""
+
 import argparse
 from pathlib import Path
 
 import pandas as pd
-
-import os
-print("RUNNING:", os.path.abspath(__file__))
 
 
 def stratified_split(
@@ -154,23 +172,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-"""
-How to run:
------------
-From the project root:
-
-python -c "import runpy, sys; sys.argv=['create_splits.py','--labels_csv','data/classification_labels.csv','--output_dir','data/splits','--val_ratio','0.15','--test_ratio','0.15','--seed','42']; runpy.run_path('src/data_src/create_splits.py', run_name='__main__')"
-
-What this produces:
--------------------
-- data/splits/train.txt
-- data/splits/val.txt
-- data/splits/test.txt
-- data/splits/splits_summary.txt
-
-Each .txt file contains one image path per line.
-
-The split is stratified, so the pneumonia/normal ratio is preserved across train/val/test.
-"""

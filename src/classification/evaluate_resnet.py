@@ -1,7 +1,31 @@
+"""
+evaluate_resnet.py
+------------------
+Evaluate a trained pneumonia classifier on the held-out test set.
+
+Produces:
+    - Confusion matrix plot
+    - Probability histogram (per-class distribution of predicted probabilities)
+    - Per-image prediction CSV
+    - Summary metrics (accuracy, sensitivity, specificity, F1, balanced accuracy, ROC-AUC)
+    - Optional export of top false-positive / false-negative images for error analysis
+
+Threshold selection:
+    - If --threshold is given, that value is used directly.
+    - Otherwise, the script auto-selects the threshold that maximises balanced accuracy
+      while meeting --target_sensitivity (default 0.90).
+
+Usage:
+    python src/classification/evaluate_resnet.py \
+        --model_name resnet50 \
+        --checkpoint models/resnet50_FINAL.pth \
+        --batch_size 64 --threshold 0.3
+"""
+
 import argparse
+import csv
 import datetime
 import json
-import csv
 import sys
 from pathlib import Path
 
@@ -13,14 +37,14 @@ from torch.utils.data import DataLoader
 from torchvision import models, transforms
 from PIL import Image
 
-print("[DEBUG] evaluate_resnet.py started")
 sys.path.append(str(Path(__file__).resolve().parent))
 
 from dataset import PneumoniaDataset
 
 
 def compute_metrics(y_true, y_pred, y_prob):
-    # Confusion components (positive class = 1)
+    """Compute binary classification metrics. Positive class = 1 (pneumonia).
+    ROC-AUC is computed via the Mann-Whitney U statistic (no sklearn needed)."""
     tp = int(((y_pred == 1) & (y_true == 1)).sum())
     fp = int(((y_pred == 1) & (y_true == 0)).sum())
     tn = int(((y_pred == 0) & (y_true == 0)).sum())
@@ -126,6 +150,7 @@ def build_model(model_name: str):
 
 
 def pick_threshold_for_target_sensitivity(y_true: np.ndarray, y_prob: np.ndarray, target_sens: float):
+    """Find the threshold that maximises balanced accuracy while keeping sensitivity >= target_sens."""
     thresholds = np.linspace(0.0, 1.0, 501)
     best_t = 0.5
     best_bal = -1.0
@@ -149,6 +174,7 @@ def save_top_errors(
     out_dir,
     max_each=20,
 ):
+    """Save the highest-confidence false positives and false negatives as PNG for review."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
     idx_sorted = np.argsort(-y_prob)
@@ -369,10 +395,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-"""
-python src/classification/evaluate_resnet.py --model_name densenet121 --checkpoint models/densenet121_pneumonia_classifier_best.pth --batch_size 64 --save_errors --max_errors_each 10
-python src/classification/evaluate_resnet.py --model_name resnet18 --checkpoint models/resnet18_pneumonia_classifier_best.pth --batch_size 64 --save_errors --max_errors_each 10
-
-"""

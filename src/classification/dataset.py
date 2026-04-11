@@ -1,3 +1,17 @@
+"""
+dataset.py
+----------
+Custom PyTorch Dataset for binary pneumonia classification on chest X-rays.
+
+Connects three data sources:
+    1. classification_labels.csv  (image_path, label)
+    2. A split file (train.txt / val.txt / test.txt) listing which images belong to this split
+    3. The actual PNG images on disk
+
+Each image is loaded as grayscale, converted to 3-channel RGB (required by
+ImageNet-pretrained backbones), and passed through an optional transform pipeline.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path

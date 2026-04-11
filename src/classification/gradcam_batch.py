@@ -1,3 +1,27 @@
+"""
+gradcam_batch.py
+----------------
+Generate Grad-CAM heatmaps for a batch of correctly classified test images.
+
+Grad-CAM (Gradient-weighted Class Activation Mapping) highlights the regions
+of the input image that most influenced the model's prediction, providing
+visual interpretability for the CNN classifier.
+
+The script:
+    1. Scans the test set for True Positive (TP) and True Negative (TN) cases
+    2. Ranks them by prediction confidence
+    3. Generates per-image outputs: original, heatmap, overlay
+    4. Creates a combined TP/TN panel figure for the report
+
+Usage:
+    python src/classification/gradcam_batch.py \
+        --model_name resnet50 \
+        --checkpoint models/resnet50_FINAL.pth \
+        --labels_csv data/classification_labels.csv \
+        --split_txt data/splits/test.txt \
+        --num_tp 5 --num_tn 5
+"""
+
 import argparse
 import csv
 import json
@@ -31,6 +55,7 @@ def build_model(model_name: str):
 
 
 def get_target_layer(model, model_name: str):
+    """Return the last convolutional layer for Grad-CAM hook registration."""
     model_name = model_name.lower().strip()
 
     if model_name in ["resnet18", "resnet50"]:
@@ -43,12 +68,20 @@ def get_target_layer(model, model_name: str):
 
 
 class GradCAM:
+    """Grad-CAM implementation using forward/backward hooks on a target layer.
+
+    Hooks capture the feature-map activations (forward pass) and their gradients
+    (backward pass). The class activation map is computed as the ReLU of the
+    weighted sum of activations, where weights are the global-average-pooled gradients.
+    """
+
     def __init__(self, model, target_layer):
         self.model = model
         self.target_layer = target_layer
         self.activations = None
         self.gradients = None
 
+        # Register hooks to capture activations and gradients
         self.forward_handle = self.target_layer.register_forward_hook(self._forward_hook)
         self.backward_handle = self.target_layer.register_full_backward_hook(self._backward_hook)
 
@@ -85,6 +118,7 @@ class GradCAM:
 
 
 def overlay_heatmap_on_image(rgb_img_float, cam, alpha=0.4):
+    """Blend a Grad-CAM heatmap onto the original RGB image."""
     heatmap = np.uint8(255 * cam)
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0

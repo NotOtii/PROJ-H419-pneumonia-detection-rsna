@@ -1,8 +1,25 @@
+"""
+train_resnet.py
+---------------
+Train a CNN classifier (ResNet18 / ResNet50 / DenseNet121) for binary
+pneumonia detection on chest X-rays from the RSNA dataset.
+
+Key features:
+    - Transfer learning from ImageNet-pretrained backbones
+    - Weighted cross-entropy loss to handle class imbalance
+    - Mild data augmentation (random flip + small rotation) on training set only
+    - ReduceLROnPlateau scheduler + early stopping on validation loss
+    - Saves best checkpoint, loss/accuracy curves, and per-epoch metrics
+
+Usage:
+    python src/classification/train_resnet.py \
+        --model_name resnet50 --epochs 25 --batch_size 16 --lr 1e-4
+"""
+
 import argparse
+import datetime
 from pathlib import Path
 from typing import Dict, Tuple
-import datetime
-
 
 import matplotlib.pyplot as plt
 import torch
@@ -399,9 +416,6 @@ def train_resnet(
     print(f"[INFO] Best model saved to: {save_path}")
     if best_epoch >= 0:
         print(f"[INFO] Best epoch: {best_epoch+1} | Best Val Loss: {best_val_loss:.4f}")
-    
-
-
 
 
 
@@ -534,39 +548,3 @@ if __name__ == "__main__":
         early_stopping_patience=args.early_stopping_patience,
         use_weighted_loss=not args.no_weighted_loss,
     )
-
-
-"""
-GENERAL OVERVIEW (train_resnet.py)
----------------------------------
-
-What this script does:
-1) Loads labels from data/classification_labels.csv (image_path,label).
-2) Loads the train/val image lists from data/splits/train.txt and data/splits/val.txt.
-3) Applies preprocessing and augmentation:
-   - Train: resize + mild random flip/rotation + tensor + normalization
-   - Val: resize + tensor + normalization (no augmentation)
-4) Trains a pretrained ResNet18/ResNet50 classifier.
-5) Uses weighted cross-entropy to reduce the impact of class imbalance.
-6) Uses a scheduler to reduce learning rate when validation loss plateaus.
-7) Uses early stopping based on validation loss.
-8) Saves:
-   - Best model checkpoint: models/<model>_pneumonia_classifier_best.pth
-   - Loss curve: results/classification/loss_curves.png
-   - Validation metrics curves: results/classification/val_metrics.png
-   - Best validation metrics: results/classification/best_val_metrics.txt
-
-How to run (Windows / cmd):
---------------------------
-From the project root:
-
-
-python src\\classification\\train_resnet.py --model_name resnet50
-
-(You can also change epochs/batch size, etc.)
-
-python src/classification/train_resnet.py --model_name densenet121 --epochs 25 --batch_size 16 --lr 0.0001
-python src/classification/train_resnet.py --model_name resnet18 --epochs 25 --batch_size 16 --lr 0.0001
-
-
-"""

@@ -1,3 +1,23 @@
+"""
+convert_dicom_to_png.py
+-----------------------
+Convert RSNA DICOM chest X-ray images to grayscale PNG files.
+
+The conversion applies:
+    - RescaleSlope / RescaleIntercept correction (DICOM standard)
+    - MONOCHROME1 inversion (so brighter = denser tissue)
+    - Min-max normalization to uint8 [0, 255]
+
+Corrupted or unreadable files are logged for review.
+
+Usage:
+    python src/data_src/convert_dicom_to_png.py \
+        --input_dir data/raw/train \
+        --output_dir data/png/train \
+        --overwrite \
+        --log_bad_dicoms results/bad_dicoms_train.txt
+"""
+
 import argparse
 from pathlib import Path
 
@@ -193,8 +213,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-"""
-# Convert training images (used for splits and training)
-python src\data_src\convert_dicom_to_png.py --input_dir data\raw\train --output_dir data\png\train --log_bad_dicoms results\bad_dicoms_train.txt
-"""

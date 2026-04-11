@@ -1,5 +1,27 @@
+"""
+plot_roc.py
+-----------
+Plot the ROC curve and compute AUC for a trained pneumonia classifier.
+
+The ROC curve is computed manually (no sklearn dependency) by sweeping
+over all unique predicted probability thresholds. AUC is computed via
+the trapezoidal rule.
+
+Outputs:
+    results/classification/<model>/<run>/roc/roc_curve_test.png
+    results/classification/<model>/<run>/roc/roc_points.csv
+    results/classification/<model>/<run>/roc/roc_summary.json
+
+Usage:
+    python src/classification/plot_roc.py \
+        --model_name resnet50 \
+        --checkpoint models/resnet50_FINAL.pth \
+        --batch_size 64
+"""
+
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -9,7 +31,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import models, transforms
 
-import sys
 sys.path.append(str(Path(__file__).resolve().parent))
 
 from dataset import PneumoniaDataset
